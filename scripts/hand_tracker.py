@@ -4,23 +4,22 @@ import rospy
 import message_filters
 
 from std_msgs.msg import Empty
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import PoseStamped, TransformStamped
 from tf_monitor_msgs.srv import SetStaticTf, SetStaticTfRequest, GetStampedTopicTf, GetStampedTopicTfRequest
 
 
 class HandTracker(object):
     def __init__(self):
-        self.right_hand_sub  = rospy.Subscriber("/vicon/right_hand/right_hand",  TransformStamped, self.right_hand_cb)
-        self.left_hand_sub   = rospy.Subscriber("/vicon/left_hand/left_hand",    TransformStamped, self.left_hand_cb)
-        self.set_center_sub  = rospy.Subscriber("/set_center", Empty, self.set_center_cb)
+        self.right_hand_sub  = rospy.Subscriber("/pimphand",    PoseStamped, self.right_hand_cb)
+        self.left_hand_sub   = rospy.Subscriber("/lefthand",    PoseStamped, self.left_hand_cb)
+        self.head_sub        = rospy.Subscriber("/head",        PoseStamped, self.head_cb)
 
-        self.right_hand_from_center_sub = rospy.Subscriber("/right_hand_from_center", TransformStamped, self.right_hand_center_cb)
-        self.left_hand_from_center_sub  = rospy.Subscriber("/left_hand_from_center", TransformStamped, self.left_hand_center_cb)
-        self.right_hand_from_center_pub = rospy.Publisher("/right_hand_from_center_pub", TransformStamped, queue_size=1)
-        self.left_hand_from_center_pub = rospy.Publisher("/left_hand_from_center_pub", TransformStamped, queue_size=1)
+        self.right_hand_tf_pub  = rospy.Publisher("/pimphand_tf", TransformStamped, queue_size=1)
+        self.left_hand_tf_pub   = rospy.Publisher("/lefthand_tf", TransformStamped, queue_size=1)
+        self.head_tf_pub        = rospy.Publisher("/head_tf",     TransformStamped, queue_size=1)
+
         self.right_hand_position = None
         self.left_hand_position  = None
-
 
         rospy.wait_for_service("/tf_monitor/SetStaticTf")
         rospy.wait_for_service("/tf_monitor/RequestStampedTopicTf")
@@ -28,17 +27,68 @@ class HandTracker(object):
         self.static_srv = rospy.ServiceProxy("/tf_monitor/SetStaticTf", SetStaticTf)
         self.tf_topic_srv = rospy.ServiceProxy("/tf_monitor/RequestStampedTopicTf", GetStampedTopicTf)
 
+        topic_request = GetStampedTopicTfRequest()
+        topic_request.out_frame = "head"
+        topic_request.topic_name = "/pimphand_tf"
+        topic_request.out_topic_name_recommendation = "right_hand_from_center"
+        self.tf_topic_srv.call(topic_request)
+
+        topic_request = GetStampedTopicTfRequest()
+        topic_request.out_frame = "head"
+        topic_request.topic_name = "/lefthand_tf"
+        topic_request.out_topic_name_recommendation = "left_hand_from_center"
+        self.tf_topic_srv.call(topic_request)
+
     def right_hand_cb(self, msg):
         """
-        :type msg: TransformStamped
+        :type msg: PoseStamped
         """
-        self.right_hand_position = msg
+        tf_msg                          = TransformStamped()
+        tf_msg.header.frame_id          = "world"
+        tf_msg.header.stamp             = msg.header.stamp
+        tf_msg.child_frame_id           = "right_hand"
+        tf_msg.transform.translation.x  = msg.pose.position.x
+        tf_msg.transform.translation.y  = msg.pose.position.y
+        tf_msg.transform.translation.z  = msg.pose.position.z
+        tf_msg.transform.rotation.x     = msg.pose.orientation.x
+        tf_msg.transform.rotation.y     = msg.pose.orientation.y
+        tf_msg.transform.rotation.z     = msg.pose.orientation.z
+        tf_msg.transform.rotation.w     = msg.pose.orientation.w
+        self.right_hand_tf_pub.publish(tf_msg)
 
     def left_hand_cb(self, msg):
         """
-        :type msg: TransformStamped
+        :type msg: PoseStamped
         """
-        self.left_hand_position = msg
+        tf_msg                          = TransformStamped()
+        tf_msg.header.frame_id          = "world"
+        tf_msg.header.stamp             = msg.header.stamp
+        tf_msg.child_frame_id           = "left_hand"
+        tf_msg.transform.translation.x  = msg.pose.position.x
+        tf_msg.transform.translation.y  = msg.pose.position.y
+        tf_msg.transform.translation.z  = msg.pose.position.z
+        tf_msg.transform.rotation.x     = msg.pose.orientation.x
+        tf_msg.transform.rotation.y     = msg.pose.orientation.y
+        tf_msg.transform.rotation.z     = msg.pose.orientation.z
+        tf_msg.transform.rotation.w     = msg.pose.orientation.w
+        self.left_hand_tf_pub.publish(tf_msg)
+
+    def head_cb(self, msg):
+        """
+        :type msg: PoseStamped
+        """
+        tf_msg                          = TransformStamped()
+        tf_msg.header.frame_id          = "world"
+        tf_msg.header.stamp             = msg.header.stamp
+        tf_msg.child_frame_id           = "head"
+        tf_msg.transform.translation.x  = msg.pose.position.x
+        tf_msg.transform.translation.y  = msg.pose.position.y
+        tf_msg.transform.translation.z  = msg.pose.position.z - 0.3  # about 3 centimeters from chest to head
+        tf_msg.transform.rotation.x     = msg.pose.orientation.x
+        tf_msg.transform.rotation.y     = msg.pose.orientation.y
+        tf_msg.transform.rotation.z     = msg.pose.orientation.z
+        tf_msg.transform.rotation.w     = msg.pose.orientation.w
+        self.head_tf_pub.publish(tf_msg)
 
     def right_hand_center_cb(self, msg):
         """

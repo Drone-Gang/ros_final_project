@@ -1,9 +1,6 @@
 <launch>
     <node pkg="tf_monitor" type="tf_monitor_node" name="tf_mon" output="screen"/>
     <node pkg="robo_project" type="hand_tracker.py" name="hand_controller" output="screen" />
-    <node pkg="vicon_bridge" type="vicon_bridge" name="vicon">
-        <param name="datastream_hostport" value="192.168.10.1"/>
-    </node>
     <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
     <include file="$(find bebop_tools)/launch/bebop_nodelet_iv.launch" />
 </launch>
